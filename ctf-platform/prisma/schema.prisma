@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  CAPTAIN
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  teamId       String?
+  createdAt    DateTime @default(now())
+  
+  // Исправление: Даем имя связи "TeamMembers", чтобы не путать с капитаном
+  team         Team?    @relation("TeamMembers", fields: [teamId], references: [id])
+  
+  // Исправление: Обратная связь для капитана
+  captainOf    Team?    @relation("TeamCaptain")
+  banned       Boolean  @default(false) 
+
+  solves       Solve[]
+}
+
+model Team {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  passwordHash String?
+  captainId    String   @unique
+  score        Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt @default(now())
+  disqualified Boolean  @default(false)
+  members      User[]   @relation("TeamMembers")
+  captain      User     @relation("TeamCaptain", fields: [captainId], references: [id])
+}
+
+
+model Challenge {
+  id          String   @id @default(uuid())
+  title       String
+  category    String   @default("MISC")
+  description String   @db.Text
+  flagHash    String
+  points      Int
+  author      String
+  fileUrl     String?  // <-- НОВОЕ ПОЛЕ (Ссылка на скачивание)
+  createdAt   DateTime @default(now())
+
+  solves      Solve[]
+}
+
+model Solve {
+  id          String   @id @default(uuid())
+  userId      String
+  challengeId String
+  createdAt   DateTime @default(now())
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+}
+
+model Announcement {
+  id        String   @id @default(uuid())
+  message   String
+  createdAt DateTime @default(now())
+}
